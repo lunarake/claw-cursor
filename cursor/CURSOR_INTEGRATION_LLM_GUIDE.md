@@ -8,7 +8,7 @@
 
 ---
 
-## 요약: 변경할 파일 (25개)
+## 요약: 변경할 파일 (26개)
 
 | 파일 | 작업 |
 |------|------|
@@ -39,6 +39,7 @@
 | `src/components/settings/constants.tsx` | cursor CLI_INFO 추가 |
 | `src/types/index.ts` | CliProvider 타입 및 DEFAULT_SETTINGS에 cursor 추가 |
 | `src/app/office-workflow-pack.ts` | resolveOfficePackSeedProvider에 cursor 추가 |
+| `src/app/office-workflow-pack.test.ts` | resolveOfficePackSeedProvider 테스트 수정 (3-provider cycle) |
 | `src/app/AppMainLayout.tsx` | AgentManager에 defaultCliProvider 전달 |
 
 ---
@@ -63,6 +64,8 @@
 ```markdown
 | [Cursor Agent](https://cursor.com/docs/cli)                   | `curl https://cursor.com/install -fsSL \| bash` | `agent login` or set `CURSOR_API_KEY` |
 ```
+
+> **마크다운 테이블에서 파이프(`|`) 처리**: 테이블 셀 내부의 `|`는 컬럼 구분자로 해석되어 테이블이 깨질 수 있습니다. `\|`로 이스케이프하거나 HTML 엔티티 `&#124;`를 사용하세요.
 
 그 아래 "How to connect Cursor Agent" 섹션 추가:
 
@@ -557,6 +560,11 @@ type OfficePackSeedProvider = Extract<CliProvider, "claude" | "codex" | "cursor"
   // 기본 fallback: cycle[seedIndex % cycle.length]
 ```
 
+**변경 3** – `office-workflow-pack.test.ts` 테스트 업데이트: `resolveOfficePackSeedProvider`를 3-provider cycle로 바꾸면 기존 테스트 "기획팀은 claude/codex를 번갈아 배치한다"가 실패합니다. 아래처럼 수정하세요:
+- 테스트 설명: "기획팀은 claude/codex/cursor를 순환 배치한다"로 변경
+- `seedOrderInDepartment`: 0 → claude, 1 → codex, 2 → cursor 기대
+- (기존 order 1→claude, 2→codex 기대는 새 cycle과 맞지 않아 제거/수정)
+
 ---
 
 ## 28. `src/app/AppMainLayout.tsx`
@@ -591,10 +599,11 @@ type OfficePackSeedProvider = Extract<CliProvider, "claude" | "codex" | "cursor"
 
 1. `pnpm run build` 성공
 2. `pnpm run test:api -- server/modules/workflow/core/cli-tools.test.ts` 성공
-3. **서버 재시작** (DB 마이그레이션 적용)
-4. `pnpm dev:local` 실행 후 Settings > CLI Tools에서 Cursor Agent 표시
-5. 에이전트 생성/편집 시 CLI provider에 "Cursor Agent" 선택 가능
-6. 직원에 cursor 할당 후 태스크 실행 시 constraint failed 없이 동작
+3. **`pnpm test`** 전체 통과 (`office-workflow-pack.test.ts` 포함)
+4. **서버 재시작** (DB 마이그레이션 적용)
+5. `pnpm dev:local` 실행 후 Settings > CLI Tools에서 Cursor Agent 표시
+6. 에이전트 생성/편집 시 CLI provider에 "Cursor Agent" 선택 가능
+7. 직원에 cursor 할당 후 태스크 실행 시 constraint failed 없이 동작
 
 ---
 
@@ -602,3 +611,4 @@ type OfficePackSeedProvider = Extract<CliProvider, "claude" | "codex" | "cursor"
 
 - **기존 DB 사용 시**: 서버 재시작 후 `[Claw-Empire] Migrated agents.cli_provider CHECK to include 'cursor'` 로그가 한 번 출력되어야 합니다.
 - **constraint failed 발생 시**: 12~13번 DB 스키마/마이그레이션 적용 여부를 확인하세요.
+- **skill_learning_history**: base-schema의 `skill_learning_history` 테이블 provider CHECK에 cursor가 없을 수 있습니다. Cursor 프로바이더로 스킬 학습이 필요하다면 CHECK에 `'cursor'`를 추가하세요. 스킬 학습을 Cursor에서 지원하지 않는다면 가이드에 별도 명시하세요.
